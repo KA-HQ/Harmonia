@@ -2,7 +2,7 @@
 
 module Harmonia
   module Generators
-    class SyncGenerator < Rails::Generators::NamedBase
+    class ReverseSyncGenerator < Rails::Generators::NamedBase
       include Rails::Generators::Migration
 
       source_root File.expand_path("templates", __dir__)
@@ -10,7 +10,7 @@ module Harmonia
       argument :name, type: :string, required: true, banner: "ModelName"
 
       def create_sync_file
-        template "filemaker_to_activerecord_syncer_template.rb", "app/syncers/#{file_name}_syncer.rb"
+        template "activerecord_to_filemaker_syncer_template.rb", "app/syncers/#{file_name}_to_filemaker_syncer.rb"
       end
 
       def create_migration
@@ -22,26 +22,39 @@ module Harmonia
         readme_content = <<~README
 
           ========================================
-          #{class_name}Syncer has been generated!
+          #{class_name}ToFileMakerSyncer has been generated!
           ========================================
 
           Files created:
-          - app/syncers/#{file_name}_syncer.rb
+          - app/syncers/#{file_name}_to_filemaker_syncer.rb
           - db/migrate/..._add_filemaker_id_to_#{table_name}.rb
 
           Next steps:
           1. Run migrations: rails db:migrate
 
-          2. Implement the records_to_create method
+          2. Implement the #{class_name}.to_fm method in your model:
+             class #{class_name} < ApplicationRecord
+               def self.to_fm(record)
+                 {
+                   'FieldMakerFieldName' => record.attribute_name,
+                   # ... map other fields
+                 }
+               end
+             end
+
+          3. Implement the records_to_create method
              - Set @total_create_required to the total number of records that should be created
-             - Return an array of Trophonius records to create
+             - Return an array of ActiveRecord records to create in FileMaker
 
-          3. Implement the records_to_update method
+          4. Implement the records_to_update method
              - Set @total_update_required to the total number of records that should be updated
-             - Return an array of Trophonius records to update
+             - Return an array of ActiveRecord records to update in FileMaker
 
-          4. Implement the records_to_delete method (optional)
-             - Return an array of record identifiers to delete
+          5. Implement the find_filemaker_record method
+             - Find corresponding FileMaker record for a given ActiveRecord record
+
+          6. Implement the records_to_delete method (optional)
+             - Return an array of FileMaker record IDs to delete
 
           Note: The total_required count used for sync tracking is automatically calculated
           from @total_create_required + @total_update_required

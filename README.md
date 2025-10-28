@@ -11,6 +11,7 @@ Harmonia is named after the Greek goddess of harmony and concord. In Greek mytho
 
 ## Features
 
+- **Bidirectional Sync**: Synchronize data from FileMaker to ActiveRecord and vice versa
 - **Automated Sync Generation**: Generate syncer classes for your models with a single command
 - **Sync Tracking**: Built-in model to track synchronization status, completion, and errors
 - **Flexible Architecture**: Customize creation, update, and deletion logic for your specific needs
@@ -50,7 +51,8 @@ rails generate harmonia:install
 This will create:
 
 - `app/services/database_connector.rb` - Manages FileMaker connections
-- `config/initializers/trophonius_model_extension.rb` - Extends Trophonius models
+- `config/initializers/trophonius_model_extension.rb` - Extends Trophonius models with `to_pg` method
+- `app/models/application_record.rb` - Extends ApplicationRecord with `to_fm` method
 - `app/models/harmonia/sync.rb` - Tracks sync operations
 - `db/migrate/[timestamp]_create_harmonia_syncs.rb` - Migration for sync tracking table
 
@@ -101,15 +103,39 @@ end
 
 ### 4. Generate a Syncer
 
-Generate a syncer for your model:
+Harmonia supports two types of synchronization:
+
+#### FileMaker to ActiveRecord Sync
+
+Generate a syncer that pulls data from FileMaker into your Rails database:
 
 ```bash
 rails generate harmonia:sync Product
 ```
 
-This creates `app/syncers/product_syncer.rb` with the basic structure.
+This creates:
+- `app/syncers/product_syncer.rb` - The syncer class
+- `db/migrate/[timestamp]_add_filemaker_id_to_products.rb` - Migration to add `filemaker_id` column
+
+**Important**: Run `rails db:migrate` after generation to add the `filemaker_id` column to your table. This column is used to track the FileMaker record ID and is automatically indexed for performance.
+
+#### ActiveRecord to FileMaker Sync
+
+Generate a reverse syncer that pushes data from Rails to FileMaker:
+
+```bash
+rails generate harmonia:reverse_sync Product
+```
+
+This creates:
+- `app/syncers/product_to_filemaker_syncer.rb` - The reverse syncer class
+- `db/migrate/[timestamp]_add_filemaker_id_to_products.rb` - Migration to add `filemaker_id` column (if not already present)
+
+**Important**: Run `rails db:migrate` after generation. The `filemaker_id` column is used to maintain the relationship between ActiveRecord and FileMaker records.
 
 ### 5. Implement Sync Logic
+
+#### FileMaker to ActiveRecord Implementation
 
 Edit the generated syncer to implement your synchronization logic:
 
@@ -173,7 +199,86 @@ class ProductSyncer
 end
 ```
 
+#### ActiveRecord to FileMaker Implementation
+
+For reverse sync, implement the `to_fm` method in your model and the syncer logic:
+
+```ruby
+# app/models/product.rb
+class Product < ApplicationRecord
+  # Convert ActiveRecord record to FileMaker attributes
+  def self.to_fm(record)
+    {
+      'PostgreSQLID' => record.id.to_s,
+      'ProductName' => record.name,
+      'Price' => record.price.to_s,
+      'SKU' => record.sku
+    }
+  end
+end
+```
+
+```ruby
+# app/syncers/product_to_filemaker_syncer.rb
+class ProductToFileMakerSyncer
+  attr_accessor :database_connector
+
+  def initialize(database_connector)
+    @database_connector = database_connector
+  end
+
+  def run
+    raise StandardError, 'No database connector set' if @database_connector.blank?
+
+    sync_record = create_sync_record
+
+    @database_connector.open_database do
+      sync_record.start!
+      sync_records(sync_record)
+    end
+  rescue StandardError => e
+    sync_record&.fail!(e.message)
+    raise
+  end
+
+  private
+
+  def records_to_create
+    pg_records = Product.all
+    @total_create_required = pg_records.length
+
+    existing_ids = Trophonius::Product.all.map { |r| r.field_data['PostgreSQLID'] }
+    pg_records.reject { |record| existing_ids.include?(record.id.to_s) }
+  end
+
+  def records_to_update
+    pg_records = Product.where('updated_at > ?', 1.hour.ago)
+
+    records_needing_update = pg_records.select { |pg_record|
+      fm_record = find_filemaker_record(pg_record)
+      fm_record && needs_update?(pg_record, fm_record)
+    }
+
+    @total_update_required = records_needing_update.length
+    records_needing_update
+  end
+
+  def find_filemaker_record(pg_record)
+    Trophonius::Product.find_by_field('PostgreSQLID', pg_record.id.to_s)
+  end
+
+  def needs_update?(pg_record, fm_record)
+    fm_attributes = Product.to_fm(pg_record)
+    fm_attributes.any? { |key, value| fm_record.field_data[key.to_s] != value }
+  end
+
+  # ... other methods (create_records, update_records, etc.)
+end
+```
+
 ### 6. Run Your Sync
+
+#### FileMaker to ActiveRecord
 
 ```ruby
 # Create a database connector
@@ -182,6 +287,18 @@ connector.hostname = 'your-filemaker-server.com'
 
 # Initialize and run the syncer
 syncer = ProductSyncer.new(connector)
+syncer.run
+```
+
+#### ActiveRecord to FileMaker
+
+```ruby
+# Create a database connector
+connector = DatabaseConnector.new
+connector.hostname = 'your-filemaker-server.com'
+
+# Initialize and run the reverse syncer
+syncer = ProductToFileMakerSyncer.new(connector)
 syncer.run
 ```
 
@@ -205,16 +322,28 @@ end
 
 #### 2. Syncer Classes
 
-Each syncer handles the synchronization logic for a specific model:
+Each syncer handles the synchronization logic for a specific model. Harmonia supports two directions:
 
-- **`records_to_create`**: Returns records that need to be created in PostgreSQL
+**FileMaker to ActiveRecord Syncers** (`ModelNameSyncer`):
+- **`records_to_create`**: Returns Trophonius records that need to be created in PostgreSQL
   - Must set `@total_create_required` to track total records
-- **`records_to_update`**: Returns records that need to be updated
+- **`records_to_update`**: Returns Trophonius records that need to be updated
   - Must set `@total_update_required` to track total records
-- **`records_to_delete`**: Returns records that should be deleted
-- **`create_records`**: Bulk creates new records
-- **`update_records`**: Updates existing records
-- **`delete_records`**: Removes obsolete records
+- **`records_to_delete`**: Returns PostgreSQL record IDs that should be deleted
+- **`create_records`**: Bulk creates new records in PostgreSQL
+- **`update_records`**: Updates existing PostgreSQL records
+- **`delete_records`**: Removes obsolete PostgreSQL records
+
+**ActiveRecord to FileMaker Syncers** (`ModelNameToFileMakerSyncer`):
+- **`records_to_create`**: Returns ActiveRecord records that need to be created in FileMaker
+  - Must set `@total_create_required` to track total records
+- **`records_to_update`**: Returns ActiveRecord records that need to be updated in FileMaker
+  - Must set `@total_update_required` to track total records
+- **`records_to_delete`**: Returns FileMaker record IDs that should be deleted
+- **`find_filemaker_record`**: Finds corresponding FileMaker record for an ActiveRecord record
+- **`create_records`**: Creates new records in FileMaker
+- **`update_records`**: Updates existing FileMaker records
+- **`delete_records`**: Removes obsolete FileMaker records
 
 #### 3. Harmonia::Sync Model
 
@@ -254,13 +383,14 @@ Harmonia::Sync.failed
 Harmonia::Sync.in_progress
 ```
 
-### Trophonius Model Extension
+#### 4. Model Extensions
 
-The `to_pg` class method is required on all Trophonius models:
+**Trophonius Model Extension** - The `to_pg` class method is required for FileMaker to ActiveRecord sync:
 
 ```ruby
 module Trophonius
   class Product < Trophonius::Model
+    # Converts FileMaker record to PostgreSQL attributes
     def self.to_pg(record)
       {
         filemaker_id: record.record_id,
@@ -272,6 +402,43 @@ module Trophonius
   end
 end
 ```
+
+**ApplicationRecord Extension** - The `to_fm` class method is required for ActiveRecord to FileMaker sync:
+
+```ruby
+class Product < ApplicationRecord
+  # Converts ActiveRecord record to FileMaker attributes
+  def self.to_fm(record)
+    {
+      'PostgreSQLID' => record.id.to_s,
+      'ProductName' => record.name,
+      'Price' => record.price.to_s,
+      # ... map other fields
+    }
+  end
+end
+```
+
+## Database Schema
+
+### The `filemaker_id` Column
+
+When you generate a syncer (either direction), Harmonia automatically creates a migration that adds a `filemaker_id` column to your table:
+
+```ruby
+add_column :products, :filemaker_id, :string
+add_index :products, :filemaker_id, unique: true
+```
+
+This column serves as the bridge between your ActiveRecord records and FileMaker records:
+
+- **FileMaker to ActiveRecord**: Stores the FileMaker `record_id` to identify which FileMaker record corresponds to each Rails record
+- **ActiveRecord to FileMaker**: Can store the FileMaker `record_id` after creation, or you can use a separate field in FileMaker (like `PostgreSQLID`) to maintain the relationship
+
+**Important Notes**:
+- The column is indexed with a unique constraint for performance and data integrity
+- The migration uses `column_exists?` to avoid errors if the column already exists
+- If you generate both sync directions for the same model, the migration will only add the column once
 
 ## Advanced Usage
 
