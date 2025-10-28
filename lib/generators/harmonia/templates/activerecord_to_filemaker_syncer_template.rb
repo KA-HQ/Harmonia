@@ -152,7 +152,8 @@ class <%= class_name %>ToFileMakerSyncer
     Harmonia::Sync.create!(
       table: '<%= table_name %>_to_filemaker',
       ran_on: Date.today,
-      status: 'pending'
+      status: 'pending',
+      direction: 'ActiveRecord to FileMaker'
     )
   end
 end

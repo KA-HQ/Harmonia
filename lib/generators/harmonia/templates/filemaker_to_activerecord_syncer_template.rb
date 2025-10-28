@@ -123,7 +123,8 @@ class <%= class_name %>Syncer
     Harmonia::Sync.create!(
       table: '<%= table_name %>',
       ran_on: Date.today,
-      status: 'pending'
+      status: 'pending',
+      direction: 'FileMaker to ActiveRecord'
     )
   end
 end

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 class ApplicationRecord < ActiveRecord::Base
-  self.abstract_class = true
+  primary_abstract_class
 
   # Converts an ActiveRecord record to FileMaker-compatible attributes
   # This method should be overridden in each model that syncs to FileMaker

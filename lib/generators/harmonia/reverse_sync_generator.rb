@@ -13,9 +13,8 @@ module Harmonia
         template "activerecord_to_filemaker_syncer_template.rb", "app/syncers/#{file_name}_to_filemaker_syncer.rb"
       end
 
-      def create_migration
-        migration_template "add_filemaker_id_to_table.rb",
-                          "db/migrate/add_filemaker_id_to_#{table_name}.rb"
+      def generate_migration
+        migration_template "add_filemaker_id_to_table.rb", "db/migrate/add_filemaker_id_to_#{table_name}.rb"
       end
 
       def show_readme

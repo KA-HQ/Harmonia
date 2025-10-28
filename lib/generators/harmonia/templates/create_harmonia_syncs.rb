@@ -8,6 +8,7 @@ class CreateHarmoniaSyncs < ActiveRecord::Migration[<%= Rails::VERSION::MAJOR %>
       t.integer :records_synced, default: 0
       t.integer :records_required, default: 0
       t.string :status, default: 'pending'
+      t.string :direction
       t.text :error_message
 
       t.timestamps
