@@ -5,6 +5,7 @@ class <%= class_name %>ToFileMakerSyncer
 
   def initialize(database_connector)
     @database_connector = database_connector
+    @last_synced_on = Harmonia::Sync.last_sync_for(<%= table_name %>, 'ActiveRecord to FileMaker')&.ran_on || Time.now - 15.years
   end
 
   # Main sync method
@@ -150,8 +151,8 @@ class <%= class_name %>ToFileMakerSyncer
 
   def create_sync_record
     Harmonia::Sync.create!(
-      table: '<%= table_name %>_to_filemaker',
-      ran_on: Date.today,
+      table: '<%= table_name %>',
+      ran_on: Time.now,
       status: 'pending',
       direction: 'ActiveRecord to FileMaker'
     )

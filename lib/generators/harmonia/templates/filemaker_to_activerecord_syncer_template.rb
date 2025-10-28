@@ -1,10 +1,11 @@
 # frozen_string_literal: true
 
 class <%= class_name %>Syncer
-  attr_acc :database_connector
+  attr_accessor :database_connector
 
   def initialize(database_connector)
     @database_connector = database_connector
+    @last_synced_on = Harmonia::Sync.last_sync_for(<%= table_name %>, 'FileMaker to ActiveRecord')&.ran_on || Time.now - 15.year
   end
 
   # Main sync method
@@ -122,7 +123,7 @@ class <%= class_name %>Syncer
   def create_sync_record
     Harmonia::Sync.create!(
       table: '<%= table_name %>',
-      ran_on: Date.today,
+      ran_on: Time.now,
       status: 'pending',
       direction: 'FileMaker to ActiveRecord'
     )

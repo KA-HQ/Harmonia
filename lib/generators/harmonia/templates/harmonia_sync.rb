@@ -10,6 +10,7 @@ module Harmonia
 
     # Scope to get syncs for a specific table
     scope :for_table, ->(table_name) { where(table: table_name) }
+    scope :for_direction, ->(direction) {where(direction:)}
 
     # Scope to get recent syncs
     scope :recent, -> { order(ran_on: :desc) }
@@ -23,9 +24,9 @@ module Harmonia
     scope :completed, -> { where(status: 'completed') }
     scope :failed, -> { where(status: 'failed') }
 
-    # Get the most recent sync for a table
-    def self.last_sync_for(table_name)
-      for_table(table_name).recent.first
+    # Get the most recent sync for a table in a given direction
+    def self.last_sync_for(table_name, direction)
+      for_direction(direction).for_table(table_name).recent.first
     end
 
     # Calculate sync completion percentage
