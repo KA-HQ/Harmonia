@@ -5,7 +5,7 @@ class <%= class_name %>Syncer
 
   def initialize(database_connector)
     @database_connector = database_connector
-    @last_synced_on = Harmonia::Sync.last_sync_for(<%= table_name %>, 'FileMaker to ActiveRecord')&.ran_on || Time.now - 15.year
+    @last_synced_on = Harmonia::Sync.last_sync_for('<%= table_name %>', 'FileMaker to ActiveRecord')&.ran_on || (Time.now - 15.year)
   end
 
   # Main sync method

@@ -5,7 +5,7 @@ class <%= class_name %>ToFileMakerSyncer
 
   def initialize(database_connector)
     @database_connector = database_connector
-    @last_synced_on = Harmonia::Sync.last_sync_for(<%= table_name %>, 'ActiveRecord to FileMaker')&.ran_on || Time.now - 15.years
+    @last_synced_on = Harmonia::Sync.last_sync_for('<%= table_name %>', 'ActiveRecord to FileMaker')&.ran_on || (Time.now - 15.years)
   end
 
   # Main sync method
@@ -90,7 +90,7 @@ class <%= class_name %>ToFileMakerSyncer
     return 0 if records.empty?
 
     records.each do |pg_record|
-      fm_attributes = <%= class_name %>.to_fm(pg_record)
+      fm_attributes = pg_record.to_fm
       YourTrophoniusModel.create(fm_attributes)
     end
 
@@ -102,7 +102,7 @@ class <%= class_name %>ToFileMakerSyncer
     return 0 if records.empty?
 
     records.each do |pg_record|
-      fm_attributes = <%= class_name %>.to_fm(pg_record)
+      fm_attributes = pg_record.to_fm
 
       # Find the FileMaker record by PostgreSQL ID or other unique identifier
       fm_record = find_filemaker_record(pg_record)
@@ -144,7 +144,7 @@ class <%= class_name %>ToFileMakerSyncer
   def needs_update?(pg_record, fm_record)
     # TODO: Implement your comparison logic
     # Example:
-    # fm_attributes = <%= class_name %>.to_fm(pg_record)
+    # fm_attributes = pg_record.to_fm
     # fm_attributes.any? { |key, value| fm_record.field_data[key.to_s] != value }
     true
   end
