@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    harmonia (0.0.1.pre.alpha)
+    harmonia (0.1.0)
       trophonius (~> 2.1)
 
 GEM
