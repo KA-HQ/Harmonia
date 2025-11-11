@@ -27,8 +27,8 @@ class <%= class_name %>ToFileMakerSyncer
   private
 
   def sync_records(sync_record)
-    created_count = create_records
     updated_count = update_records
+    created_count = create_records
     delete_records
 
     total_synced = created_count + updated_count

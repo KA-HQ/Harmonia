@@ -27,8 +27,8 @@ class <%= class_name %>Syncer
   private
 
   def sync_records(sync_record)
-    created_count = create_records
     updated_count = update_records
+    created_count = create_records
     delete_records
 
     total_synced = created_count + updated_count
@@ -81,6 +81,12 @@ class <%= class_name %>Syncer
     # filemaker_ids = YourTrophoniusModel.all.map(&:record_id)
     # <%= class_name %>.where.not(filemaker_id: filemaker_ids).pluck(:id)
     []
+  end
+
+  def needs_update?(fm_record, pg_record)
+    pg_attributes = YourTrophoniusModel.to_pg(fm_record)
+
+    pg_attributes.any? { |key, value| pg_record.send(key) != value }
   end
 
   def create_records

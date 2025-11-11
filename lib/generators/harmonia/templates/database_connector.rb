@@ -18,7 +18,7 @@ class DatabaseConnector
   def connect
     Trophonius.configure do |config|
       config.host = @hostname
-      config.database = 'Alloqate'
+      config.database = 'DatabaseName'
       config.username = Rails.application.credentials.dig(:filemaker, :username)
       config.password = Rails.application.credentials.dig(:filemaker, :password)
       config.ssl = true # or false depending on whether https or http should be used
