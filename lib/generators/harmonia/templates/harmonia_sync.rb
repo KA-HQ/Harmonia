@@ -24,9 +24,9 @@ module Harmonia
     scope :completed, -> { where(status: 'completed') }
     scope :failed, -> { where(status: 'failed') }
 
-    # Get the most recent sync for a table in a given direction
+    # Get the most recent successful sync for a table in a given direction
     def self.last_sync_for(table_name, direction)
-      for_direction(direction).for_table(table_name).recent.first
+      completed.for_direction(direction).for_table(table_name).recent.first
     end
 
     # Calculate sync completion percentage
