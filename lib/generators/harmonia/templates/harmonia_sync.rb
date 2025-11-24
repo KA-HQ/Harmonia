@@ -26,7 +26,7 @@ module Harmonia
 
     # Get the most recent sync for a table in a given direction
     def self.last_sync_for(table_name, direction)
-      for_direction(direction).for_table(table_name).recent.first
+      completed.for_direction(direction).for_table(table_name).recent.first
     end
 
     # Calculate sync completion percentage
@@ -46,19 +46,23 @@ module Harmonia
     end
 
     # Mark sync as completed
-    def finish!(records_synced:, records_required:)
+    def finish!(records_synced:, records_required:, failed_fm_ids: [], failed_pg_ids: [])
       update!(
         status: 'completed',
         records_synced: records_synced,
-        records_required: records_required
+        records_required: records_required,
+        failed_fm_ids: failed_fm_ids,
+        failed_pg_ids: failed_pg_ids
       )
     end
 
     # Mark sync as failed
-    def fail!(error_message)
+    def fail!(error_message, failed_fm_ids: [], failed_pg_ids: [])
       update!(
         status: 'failed',
-        error_message: error_message
+        error_message: error_message,
+        failed_fm_ids: failed_fm_ids,
+        failed_pg_ids: failed_pg_ids
       )
     end
   end

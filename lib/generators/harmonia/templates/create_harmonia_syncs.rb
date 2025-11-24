@@ -10,6 +10,8 @@ class CreateHarmoniaSyncs < ActiveRecord::Migration[<%= Rails::VERSION::MAJOR %>
       t.string :status, default: 'pending'
       t.string :direction
       t.text :error_message
+      t.string :failed_fm_ids, array: true
+      t.integer :failed_pg_ids, array: true
 
       t.timestamps
     end
