@@ -2,7 +2,7 @@
 
 Gem::Specification.new do |s|
   s.name = 'harmonia'
-  s.version = '0.1.8'
+  s.version = '0.1.9'
   s.authors = 'Kempen Automatisering'
   s.homepage = 'https://github.com/KA-HQ/Harmonia'
   s.summary = 'FileMaker to ActiveRecord sync generator'

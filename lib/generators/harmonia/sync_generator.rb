@@ -17,6 +17,57 @@ module Harmonia
         migration_template "add_filemaker_id_to_table.rb", "db/migrate/add_filemaker_id_to_#{table_name}.rb"
       end
 
+      def create_or_update_rake_task
+        rake_file = "lib/tasks/sync_data.rake"
+        task_name = "sync_#{file_name}"
+
+        if File.exist?(rake_file)
+          # Read existing file
+          content = File.read(rake_file)
+
+          # Add new task before the final 'end' if it doesn't exist
+          unless content.include?("task #{task_name}:")
+            # Add the new task before the final 'end'
+            new_task = <<~TASK
+
+                desc 'sync #{table_name} from FileMaker to ActiveRecord'
+                task #{task_name}: :environment do
+                  #{class_name}Syncer.new.sync
+                end
+            TASK
+
+            # Insert before the final 'end'
+            content = content.sub(/^end\s*$/, "#{new_task}end")
+
+            # Add task to the 'all' array
+            content = content.sub(/task all: %i\[(.*?)\]/) do
+              tasks = $1.split.map(&:to_sym)
+              tasks << task_name.to_sym unless tasks.include?(task_name.to_sym)
+              "task all: %i[#{tasks.join(' ')}]"
+            end
+
+            File.write(rake_file, content)
+          end
+        else
+          # Create new rake file
+          template "sync_data.rake", rake_file
+
+          # Add the new task
+          content = File.read(rake_file)
+          new_task = <<~TASK
+
+              desc 'sync #{table_name} from FileMaker to ActiveRecord'
+              task #{task_name}: :environment do
+                #{class_name}Syncer.new.sync
+              end
+          TASK
+
+          content = content.sub(/^end\s*$/, "#{new_task}end")
+          content = content.sub(/task all: %i\[\]/, "task all: %i[#{task_name}]")
+          File.write(rake_file, content)
+        end
+      end
+
       def show_readme
         readme_content = <<~README
 
@@ -27,6 +78,7 @@ module Harmonia
           Files created:
           - app/syncers/#{file_name}_syncer.rb
           - db/migrate/..._add_filemaker_id_to_#{table_name}.rb
+          - lib/tasks/sync_data.rake (updated with sync_#{file_name} task)
 
           Next steps:
           1. Run migrations: rails db:migrate
@@ -44,6 +96,10 @@ module Harmonia
 
           Note: The total_required count used for sync tracking is automatically calculated
           from @total_create_required + @total_update_required
+
+          5. Run the sync task:
+             - Individual sync: rake sync:sync_#{file_name}
+             - All syncs: rake sync:all
 
         README
 
