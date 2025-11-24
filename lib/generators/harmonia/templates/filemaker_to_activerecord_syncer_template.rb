@@ -6,8 +6,8 @@ class <%= class_name %>Syncer
   def initialize(database_connector)
     @database_connector = database_connector
     @last_synced_on = Harmonia::Sync.last_sync_for('<%= table_name %>', 'FileMaker to ActiveRecord')&.ran_on || (Time.now - 15.year)
-    @failed_fm_ids = []
-    @failed_pg_ids = []
+    @failed_fm_ids = {}
+    @failed_pg_ids = {}
   end
 
   # Main sync method
@@ -119,7 +119,7 @@ class <%= class_name %>Syncer
         <%= class_name %>.create!(attributes)
         success_count += 1
       rescue StandardError => e
-        @failed_fm_ids << trophonius_record.record_id
+        @failed_fm_ids[trophonius_record.record_id.to_s] = e.message
         Rails.logger.error("Failed to create record from FileMaker ID #{trophonius_record.record_id}: #{e.message}")
       end
     end
@@ -142,7 +142,7 @@ class <%= class_name %>Syncer
         )
         success_count += 1
       rescue StandardError => e
-        @failed_fm_ids << trophonius_record.record_id
+        @failed_fm_ids[trophonius_record.record_id.to_s] = e.message
         Rails.logger.error("Failed to update record from FileMaker ID #{trophonius_record.record_id}: #{e.message}")
       end
     end
@@ -158,7 +158,7 @@ class <%= class_name %>Syncer
       begin
         <%= class_name %>.where(id: pg_id).destroy_all
       rescue StandardError => e
-        @failed_pg_ids << pg_id
+        @failed_pg_ids[pg_id.to_s] = e.message
         Rails.logger.error("Failed to delete record with PostgreSQL ID #{pg_id}: #{e.message}")
       end
     end

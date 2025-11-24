@@ -46,7 +46,7 @@ module Harmonia
     end
 
     # Mark sync as completed
-    def finish!(records_synced:, records_required:, failed_fm_ids: [], failed_pg_ids: [])
+    def finish!(records_synced:, records_required:, failed_fm_ids: {}, failed_pg_ids: {})
       status = records_synced == records_required ? 'completed' : 'failed'
       update!(
         status: status,
@@ -58,7 +58,7 @@ module Harmonia
     end
 
     # Mark sync as failed
-    def fail!(error_message, failed_fm_ids: [], failed_pg_ids: [])
+    def fail!(error_message, failed_fm_ids: {}, failed_pg_ids: {})
       update!(
         status: 'failed',
         error_message: error_message,
