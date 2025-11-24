@@ -47,8 +47,9 @@ module Harmonia
 
     # Mark sync as completed
     def finish!(records_synced:, records_required:, failed_fm_ids: [], failed_pg_ids: [])
+      status = records_synced == records_required ? 'completed' : 'failed'
       update!(
-        status: 'completed',
+        status: status,
         records_synced: records_synced,
         records_required: records_required,
         failed_fm_ids: failed_fm_ids,
